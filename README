@@ -1,0 +1,285 @@
+ivim_tools
+----------
+
+This software package provides the necessary MATLAB scripts, phase 
+distributions and data sets to reproduce the figures in the manuscript 
+"Flow compensated IVIM imaging" by A. Wetscherek, B. Stieltjes and F. B. 
+Laun.
+
+---------------------------------------------------------------------------
+
+Contents:
+
+  0. Copyright
+
+  1. Phase distributions
+  1.1 File structure
+  1.2 Generation of phase distribution files
+  1.3 Other files
+
+  2. Image data
+  2.1 File structure
+  2.2 Phantom data sets
+  2.3 Volunteer data sets
+  2.4 Parameter maps
+
+  3. Skripts to obtain the figures in the manuscript
+  3.0 Helper functions
+  3.1 Calculation of the diffusion weighted signal
+  3.2 Phase distributions for selected values of N
+  3.3 Comparison of GPA and exact signal attenuation curves
+  3.4 Signal attenuation for pipe phantom with and without flow
+  3.5 Signal attenuation for ROIs in pancreas and liver
+  3.6 Display parameter maps
+
+---------------------------------------------------------------------------
+
+0. Copyright
+------------
+
+Included in this software distribution are the following files, which are 
+covered by seperate BSD licenses: 
+- jacobianest.m from the DERIVESTsuite (c) 2007 by John D'Errico
+- tight_subplot.m (c) 2010 by Pekka Kumpulainen
+
+This software is covered by the following BSD license:
+---------------------------------------------------------------------------
+
+Copyright (c) 2014, Andreas Wetscherek
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+* Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright
+  notice, this list of conditions and the following disclaimer in
+  the documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+---------------------------------------------------------------------------
+
+
+
+1. Phase distributions
+----------------------
+
+The code used for generation of the phase distributions is found in the 
+"phd" subfolder. The necessary steps can be executed from the file 
+"phd/skript_phd_gpu.m", but the files containing the resulting phase 
+distributions are already present in the "phd" subfolder, in particular the
+file "generic_v2.mat" which contains the velocity distributions for a
+parabolic flow profile. 
+
+
+    1.1 File structure
+    ------------------
+
+    Those phase distribution files contain the following variables:
+
+    - profiles:    names of the gradient profiles for which phase 
+                   distributions are saved in this file.
+
+    - N:           list of different ratios T/tau for which phase 
+                   distributions have been generated.
+
+    - phis:        centers of columns for the phase histograms.
+
+    - bip/fc0/fc1: matrices containing the phase histograms. Each row 
+                   corresponds to a different N, where each column contains 
+                   the values assigned to the phase bin centered around the 
+                   corresponding value in "phis". In the manuscript only 
+                   the "bip" and "fc1" distributions are used.
+ 
+
+    1.2 Generation of phase distribution files
+    ------------------------------------------
+
+    Step 1: calculation of phase histograms (takes approx. 7h 45 min on 
+            i7-3820 / GTX 660 Ti and needs parallel computing toolbox).
+            -> base.mat
+
+    Step 2: normalization of phase histograms (very fast).
+            -> generic.mat
+
+    Step 3: replacing the simulated phase histograms for N=1 with the 
+            analytic solution. (very fast)
+            -> generic_N1.mat
+
+    Step 4: include the parabolic velocity profile (laminar flow) into the 
+            phase distribution. (~45 min on i7-3820 / GTX 660 Ti)
+            -> generic_v2.mat 
+
+
+    1.3 Other files
+    ---------------
+
+    For the each of the profiles (bip/fc0/fc1), the following files are 
+    present in the phd folder, where xxx denotes the profile abbreviation:
+
+    - c_xxx.m:              File containing the formula for the weighting 
+                            function (eq. (5)).
+
+    - phd_xxx_N1.m:         File containing the analytic formula for the 
+                            phase distribution for N=1.
+
+    - phd_int_xxx_N1.m:     Integration of the analytic formula for the 
+                            phase distribution for N=1.
+
+    - phd_hist_xxx_N1.m:    Calculates histogram for the specified column 
+                            centers based on the analytic N=1 distribution.
+
+    - phd_lim_Nhigh.m:      Similar functions for the limit of high N,
+    - phd_int_lim_Nhigh.m:  where phase distributions converge towards a
+    - phd_hist_lim_Nhigh.m: Gaussian.
+
+    - phd_normalize.m:      Performs Step 2.
+
+    - phd_exact_N1.m:       Performs Step 3.
+   
+    - phd_apply_v2.m:       Performs Step 4.
+
+    - phd_rebin.m:          Used to rebin histograms (used in Step 4).
+
+    - phs.m:                Pseudo-HeaviSide function used to evaluate
+                            piecewise defined functions.
+
+    
+
+
+2. Image data
+---------------
+
+
+    2.1 File structure
+    ------------------
+
+    successive images of a particular slice are saved in a 3-dimensional, 
+    structure "data", where the first dimension corresponds to the image
+    number and the 2nd and 3rd dimension to height and width of the images.
+    The variables T, b and betta specify the acquisition parameters for the
+    associated image number, where T denotes the diffusion time in ms, b is
+    the b-value in s/mm² and betta denotes whether the bipolar (betta=1) or
+    flow compensated (betta=2) gradient profile is used.
+
+    regions of interest can be specified as a matrix of the size of the
+    image dimensions, where pixels can be labeled by the number of the 
+    corresponding ROI. Furthermore a mask (value 0/1) can be specified, to 
+    exclude pixels outside the body from pixel-wise fitting to save time.
+  
+
+    2.2 Phantom data sets
+    ---------------------
+
+    a pipe of diameter 1 cm placed such that it is oriented along the 
+    readout (width) direction. While ROI 2 corresponds to the pipe, ROI 1
+    marks a static bottle consisting of an aqueous NiSO4 solution. 
+
+    "data/phantom_flow.mat": water in the pipe is flowing with ~0.9 cm/s
+    "data/phantom_static.mat": water in the pipe is not flowing
+
+
+    2.3 Volunteer data sets
+    -----------------------
+
+    abdominal diffusion images for 6 different volunteers are provided in
+    the "data" folder. Several rois are marked in the rois variable: ROI 1
+    corresponds to the evaluated region in pancreas, ROI 2 = liver, ROI 3 =
+    kidney, ROI 4 = spleen.
+
+    The specified masks correspond to regions inside the abdomen for the
+    pixel-wise fitting of the IVIM model.
+
+
+    2.4 Parameter maps
+    ------------------
+
+    For each of the volunteers, the obtained parameter maps are saved in
+    the corresponding ".mat" files in the "maps" subfolder. Each file
+    contains the average b0 image, the Dhighb and fhighb maps from the 
+    prefit, the maps of the IVIM model parameters D, f, tau and v. The 
+    Dstar maps are calculated from the tau and v maps. The residual of the
+    fit is saved in the r map.
+
+  
+3. Skripts to obtain the figures in the manuscript
+--------------------------------------------------
+
+    3.0 Helper functions
+    --------------------
+    - jacobianest.m: from the DERIVESTsuite (c) 2007 by John D'Errico:
+                     used to determine uncertainty of model parameter
+                     estimation for evaluation of pancreas and liver ROIs.
+
+    - tight_subplot.m: (c) 2010 by Pekka Kumpulainen:
+                       used to plot parameter maps into one big figure
+    
+    - trace.m: geometric averaging over the different diffusion directions
+               belonging to one b-value to generate a trace-weighted. Also the b0 images acquired within
+               a single breathhold are averaged. The script makes use of
+               the acquisition scheme having been like
+                 b0
+                 6x b1
+                 b0
+                 6x b2
+                 b0
+                 ---
+                 b0
+                 6x b3
+                 ...
+               to determine breath hold length.
+ 
+    - trace14.m: basically identical to trace.m except that only those 
+                 diffusion directions are used which are non-perpendicular
+                 to the readout direction (used in the phantom evaluation).
+                 For the used acquisition scheme, those correspond to the 
+                 first 4 diffusion directions.
+
+    3.1 Calculation of the diffusion weighted signal
+    ------------------------------------------------
+    generic_model.m : calculates the signal attenuation for the specified
+                      set of model parameters ([...] denotes units):
+                      - D   = x(1)        --> [x(1)] = µm²/ms
+                      - f   = x(2)        --> [x(2)] = 1
+                      - tau = x(3) * 100  --> [x(3)] = 0.1s
+                      - v   = x(4)        --> [x(4)] = mm/s
+
+    The acquisition parameters T, b and betta (bipolar=1, flow 
+    compensated=2) need to be specified as fields of a global variable
+    "generic". The phase distributions also need to be stored as fields of
+    "generic", i.e. generic.('N'), generic.('phis'), generic.('bip') and
+     generic.('fc1'). For details see the implementation in the scripts.
+
+
+    3.2 Phase distributions for selected values of N
+    ------------------------------------------------
+    -> skript_fig1.m
+
+    3.3 Comparison of GPA and exact signal attenuation curves
+    ---------------------------------------------------------
+    -> skript_fig2.m
+
+    3.4 Signal attenuation for pipe phantom with and without flow
+    -------------------------------------------------------------
+    -> skript_fig4.m
+
+    3.5 Signal attenuation for ROIs in pancreas and liver
+    -----------------------------------------------------
+    -> skript_fig6.m
+
+    3.6 Display parameter maps
+    --------------------------
+    -> skript_fig7.m
